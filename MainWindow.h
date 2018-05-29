@@ -51,6 +51,12 @@ class InputWidgetUQ;
 class InputWidgetParameters;
 class DakotaResults;
 
+class AgaveCurl;
+class RemoteJobCreator;
+class RemoteJobManager;
+class QPushButton;
+class QLabel;
+class QThread;
 
 class MainWindow : public QMainWindow
 {
@@ -59,26 +65,44 @@ class MainWindow : public QMainWindow
     public:
   explicit MainWindow(QWidget *parent = 0);
   ~MainWindow();
-  
+
+  QLabel *errorLabel;
+
+signals:
+    void attemptLogin(QString, QString);
+    void logout();
+
   public slots:
     void newFile();
     void open();
     bool save();
     bool saveAs();
 
+
     void onRunButtonClicked();
     void onRemoteRunButtonClicked();
+    void onJobsManagerButtonClicked();
     void onExitButtonClicked();
+
+    void onLoginButtonClicked();
+    void onLoginSubmitButtonClicked();
+
+    void attemptLoginReturn(bool);
+    void logoutReturn(bool);
 
     void onDakotaMethodChanged(void);
 
+    void errorMessage(QString message);
+    void fatalMessage(QString message);
+
   //void selectionChangedSlot(const QItemSelection &, const QItemSelection &);
+
+    bool saveFile(const QString &fileName);
+    void loadFile(const QString &fileName);
+    void processResults(QString &filename1, QString & filename2);
 
  private:
     void setCurrentFile(const QString &fileName);
-    bool saveFile(const QString &fileName);
-    void loadFile(const QString &fileName);
-
     void createActions();
 
     //Ui::MainWindow *ui;
@@ -86,11 +110,25 @@ class MainWindow : public QMainWindow
     QString currentFile;
     SidebarWidgetSelection *inputWidget;
 
-//    SimCenterWidget *edp;
     InputWidgetFEM *fem;
     InputWidgetUQ *uq;
     InputWidgetParameters *random;
     DakotaResults *results;
+
+    AgaveCurl *theRemoteInterface;
+    RemoteJobCreator *jobCreator;
+    RemoteJobManager *jobManager;
+
+
+    bool loggedIn;
+    QWidget *loginWindow;            // popup window for when login clicked
+    QLineEdit *nameLineEdit;         // username line edit
+    QLineEdit *passwordLineEdit;     // password line edit
+    int numTries;
+    QPushButton *loginButton;         // login button on main screen
+    QPushButton *loginSubmitButton;   // submit button on login screen
+
+    QThread *thread;
 };
 
 #endif // MAINWINDOW_H

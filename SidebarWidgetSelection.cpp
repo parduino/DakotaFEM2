@@ -55,6 +55,8 @@ SidebarWidgetSelection::addInputWidget(const QString &name, SimCenterWidget *the
     QStandardItem *item = new QStandardItem(name);
     rootNode->appendRow(item);
     widgets[name] = theWidget;
+    widgetIndices[name] = numWidgets;
+    numWidgets++;
 }
 
 void
@@ -96,6 +98,7 @@ SidebarWidgetSelection::SidebarWidgetSelection(QWidget *parent)
     treeView = new QTreeView();
     standardModel = new QStandardItemModel ;
     rootNode = standardModel->invisibleRootItem();
+    numWidgets = 0;
 }
 
 SidebarWidgetSelection::~SidebarWidgetSelection()
@@ -105,7 +108,7 @@ SidebarWidgetSelection::~SidebarWidgetSelection()
 
 
 void
-SidebarWidgetSelection::setSelection(const QString & newSelection)
+SidebarWidgetSelection::setSelection(const QString &newSelection)
 {
     // remove current widget from layout
     if (currentWidget != 0) {
@@ -113,11 +116,18 @@ SidebarWidgetSelection::setSelection(const QString & newSelection)
         currentWidget->setParent(0);
     }
 
+    // find replacement given inut & add that one to layout
+
     currentWidget = widgets[newSelection];
+    int widgetIndex= widgetIndices[newSelection];
     if (currentWidget == 0)
         qDebug() << "WIDGET NOT FOUND";
-    else
+    else {
         horizontalLayout->insertWidget(horizontalLayout->count()-1, currentWidget, 1);
+       // standardModel->index(0,0);
+        treeView->setCurrentIndex(treeView->model()->index(widgetIndex,0));
+    }
+
 }
 
 
@@ -134,6 +144,7 @@ SidebarWidgetSelection::selectionChangedSlot(const QItemSelection & /*newSelecti
     const QModelIndex index = treeView->selectionModel()->currentIndex();
     QString selectedText = index.data(Qt::DisplayRole).toString();
 
+    // get widget based on text supplied & that one to layout
     currentWidget = widgets[selectedText];
     if (currentWidget == 0)
         qDebug() << "WIDGET NOT FOUND";
@@ -142,12 +153,15 @@ SidebarWidgetSelection::selectionChangedSlot(const QItemSelection & /*newSelecti
 }
 
 
-void
+bool
 SidebarWidgetSelection::outputToJSON(QJsonObject &jsonObject)
 {
+    bool result = true;
     QMap<QString, SimCenterWidget *>::iterator i;
     for (i = widgets.begin(); i != widgets.end(); ++i)
-        i.value()->outputToJSON(jsonObject);
+        if (i.value()->outputToJSON(jsonObject) == false)
+            result = false;
+    return false;
 }
 
 void
@@ -156,10 +170,13 @@ SidebarWidgetSelection::clear(void)
     //    theClineInput->clear();
 }
 
-void
+bool
 SidebarWidgetSelection::inputFromJSON(QJsonObject &jsonObject)
 {
+    bool result = true;
     QMap<QString, SimCenterWidget *>::iterator i;
     for (i = widgets.begin(); i != widgets.end(); ++i)
-        i.value()->inputFromJSON(jsonObject);
+        if (i.value()->inputFromJSON(jsonObject) == false)
+            result = false;
+    return result;
 }

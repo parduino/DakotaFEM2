@@ -1,11 +1,11 @@
-#ifndef INPUT_WIDGET_PARAMETERS_H
-#define INPUT_WIDGET_PARAMETERS_H
+#ifndef REMOTEJOBCREATOR_H
+#define REMOTEJOBCREATOR_H
 
 /* *****************************************************************************
 Copyright (c) 2016-2017, The Regents of the University of California (Regents).
 All rights reserved.
 
-Redistribution and use in source and binary forms, with or without 
+Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
 1. Redistributions of source code must retain the above copyright notice, this
@@ -29,44 +29,67 @@ The views and conclusions contained in the software and documentation are those
 of the authors and should not be interpreted as representing official policies,
 either expressed or implied, of the FreeBSD Project.
 
-REGENTS SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT LIMITED TO, 
+REGENTS SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
 THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
-THE SOFTWARE AND ACCOMPANYING DOCUMENTATION, IF ANY, PROVIDED HEREUNDER IS 
-PROVIDED "AS IS". REGENTS HAS NO OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, 
+THE SOFTWARE AND ACCOMPANYING DOCUMENTATION, IF ANY, PROVIDED HEREUNDER IS
+PROVIDED "AS IS". REGENTS HAS NO OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT,
 UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 
 *************************************************************************** */
 
+
 // Written: fmckenna
 
-#include <SimCenterWidget.h>
-class QVBoxLayout;
-class RandomVariableInputWidget;
+// Purpose: a widget for submitting uqFEM jobs to HPC resource (specifically DesignSafe at moment)
+//  - the widget aasks for additional info needed and provide a submit button to submit the jb when clicked.
 
-class InputWidgetParameters : public SimCenterWidget
+#include <QWidget>
+#include <AgaveCurl.h>
+
+class QLineEdit;
+
+class JobManager;
+class MainWindow;
+class QPushButton;
+
+class RemoteJobCreator : public QWidget
 {
     Q_OBJECT
 public:
-    explicit InputWidgetParameters(QWidget *parent = 0);
-    virtual ~InputWidgetParameters();
-
-    virtual bool outputToJSON(QJsonObject &rvObject);
-    virtual bool inputFromJSON(QJsonObject &rvObject);
-
-    void setParametersWidget(RandomVariableInputWidget *theParameters);
-    void setInitialVarNamesAndValues(QStringList varNamesAndValues);
-    QStringList getParametereNames(void);
+    explicit RemoteJobCreator(AgaveCurl *, QWidget *parent = nullptr);
+    void setInputDirectory(const QString & directoryName);
 
 signals:
+   void getHomeDirCall(void);
+   void uploadDirCall(const QString &local, const QString &remote);
+   void startJobCall(QJsonObject theJob);
+   void successfullJobStart(void);
 
 public slots:
-       void errorMessage(QString message);
+    void attemptLoginReturn(bool);
 
-protected:
-    RandomVariableInputWidget *theParameters;
-    QVBoxLayout *layout;
+    void pushButtonClicked(void);
+    void uploadDirReturn(bool);
+    void getHomeDirReturned(QString);
+    void startJobReturn(QString);
 
-    QStringList varNamesAndValues;
+
+private:
+    void submitJob(void);
+
+    QLineEdit *nameLineEdit;
+    QLineEdit *numCPU_LineEdit;
+    QLineEdit *numProcessorsLineEdit;
+    QLineEdit *runtimeLineEdit;
+
+    AgaveCurl   *theInterface;
+ //   JobManager *theManager;
+
+    QString directoryName;
+    QPushButton *pushButton;
+
+    QString remoteHomeDirPath;
+    QJsonObject theJob;
 };
 
-#endif // INPUT_WIDGET_PARAMETERS_SAMPLING_H
+#endif // REMOTEJOBCREATOR_H

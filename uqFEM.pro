@@ -4,14 +4,20 @@
 #
 #-------------------------------------------------
 
-QT       += core gui charts
+QT       += core gui charts concurrent
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
-TARGET = DakotaFEM
+TARGET = uqFEM
 TEMPLATE = app
 
 INCLUDEPATH += ../widgets/RandomVariables
+# INCLUDEPATH += ../simcenterAgave/interface
+
+macos:LIBS += /usr/lib/libcurl.dylib
+win32:INCLUDEPATH+=../libCurl-7.59.0/include
+win32:LIBS += ../libCurl-7.59.0/lib/libcurl.lib
+
 include(../widgets/RandomVariables/RandomVariables.pri)
 include(../widgets/Common/Common.pri)
 
@@ -25,15 +31,18 @@ SOURCES += main.cpp\
         InputWidgetSampling.cpp \
         DakotaResults.cpp \
         DakotaResultsSampling.cpp \
-        MyTableWidget.cpp \
-    DakotaResultsCalibration.cpp \
-    InputWidgetCalibration.cpp \
-    InputWidgetDakotaMethod.cpp \
-    InputWidgetParameters.cpp \
-    DakotaResultsBayesianCalibration.cpp \
-    InputWidgetBayesianCalibration.cpp \
-    OpenSeesParser.cpp \
-    FEAPpvParser.cpp
+        DakotaResultsCalibration.cpp \
+        InputWidgetCalibration.cpp \
+        InputWidgetDakotaMethod.cpp \
+        InputWidgetParameters.cpp \
+        DakotaResultsBayesianCalibration.cpp \
+        InputWidgetBayesianCalibration.cpp \
+        OpenSeesParser.cpp \
+        FEAPpvParser.cpp \
+    RemoteJobCreator.cpp \
+    MyTableWidget.cpp \
+    RemoteJobManager.cpp \
+    AgaveCurl.cpp
 
 HEADERS  += MainWindow.h \
     EDP.h \
@@ -44,7 +53,6 @@ HEADERS  += MainWindow.h \
     InputWidgetSampling.h \
     DakotaResults.h \
     DakotaResultsSampling.h \
-    MyTableWidget.h \
     InputWidgetCalibration.h \
     DakotaResultsCalibration.h \
     InputWidgetDakotaMethod.h \
@@ -53,6 +61,10 @@ HEADERS  += MainWindow.h \
     InputWidgetBayesianCalibration.h \
     DakotaResultsBayesianCalibration.h \
     OpenSeesParser.h \
-    FEAPpvParser.h
+    FEAPpvParser.h \
+    RemoteJobCreator.h \
+    MyTableWidget.h \
+    RemoteJobManager.h \
+    AgaveCurl.h
 
 FORMS    += mainwindow.ui
