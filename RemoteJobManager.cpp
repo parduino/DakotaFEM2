@@ -54,6 +54,9 @@ UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 #include <MainWindow.h>
 #include <QTemporaryFile>
 #include <QHeaderView>
+#include <QRect>
+#include <QApplication>
+#include <QDesktopWidget>
 
 #include <QMenu>
 
@@ -80,6 +83,14 @@ RemoteJobManager::RemoteJobManager(AgaveCurl *theRemoteInterface, MainWindow *th
     layout->addWidget(jobsTable, 1.0);
     //jobsTable->setSizePolicy(QSizePolicy::Ignored);
     this->setLayout(layout);
+    QRect rec = QApplication::desktop()->screenGeometry();
+
+    int height = 0.5*rec.height();
+    int width = 0.5*rec.width();
+
+    this->resize(width, height);
+
+
     //jobsTable->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
 
     this->setMinimumHeight(200);
@@ -221,8 +232,6 @@ RemoteJobManager::deleteJobAndData(void){
         //   NOTE SHOULD probably check job status not RUNNING befre doing this
         //
 
-
-
         QTableWidgetItem *itemID=jobsTable->item(triggeredRow,2);
 
         jobIDRequest = itemID->text();
@@ -263,6 +272,12 @@ RemoteJobManager::getJobDetailsReturn(QJsonObject job)  {
 
      if (getJobDetailsRequest == 2) {
 
+         //
+         // the request was a getJobData
+         //    we have to download the files & then process them
+         //    note: the processing done after files have downloaded
+         //
+
          QString archiveDir;
          QString inputDir;
          QJsonValue archivePath = job["archivePath"];
@@ -286,6 +301,7 @@ RemoteJobManager::getJobDetailsReturn(QJsonObject job)  {
         // create 3 temp file names neede to store remote data files locally
         //
 
+        /* name1 in following keeps failing .. just use same file names
         QTemporaryFile tmpFile1;
        // QString name1, name2, name3;
 
@@ -314,8 +330,11 @@ RemoteJobManager::getJobDetailsReturn(QJsonObject job)  {
             // will have to overwrite any local dakotaTab.out;
             name3 = "dakotaTab.out";
         }
-        name1="dakota.json";
+        */
 
+        name1="dakota.json";
+        name2="dakota.out";
+        name3="dakotaTab.out";
 
         QStringList localFiles;
         localFiles.append(name1);
@@ -337,24 +356,27 @@ RemoteJobManager::getJobDetailsReturn(QJsonObject job)  {
         filesToDownload.append(dakotaTAB);
 
         emit downloadFiles(filesToDownload, localFiles);
-
-        //theInterface->downloadFile(dakotaJSON, name1);
-        //theMainWindow->loadFile(name1);
-
-         // now download the output data & process it
-        //theInterface->downloadFile(dakotaOUT, name1);
-       // theInterface->downloadFile(dakotaTAB, name2);
-       // theMainWindow->processResults(name1, name2);
      }
 }
 
 void
 RemoteJobManager::downloadFilesReturn(bool result)
 {
-    qDebug() << " name1: " << name1 << "name2: " << name2 << " name3: " << name3;
-    theMainWindow->loadFile(name1);
-    theMainWindow->processResults(name2, name3);
-    this->hide();
+    //
+    // this method called only during the loading of a remote job
+    //    called as a resultt of method abive which emitted a downloadFIles(),
+    //    which itself was a result of the getJobData methid and it's emit getJobDetails signal
+    //
+
+    if (result == true) {
+        theMainWindow->loadFile(name1);
+        theMainWindow->processResults(name2, name3);
+        this->hide();
+    } else {
+        emit errorMessage("ERROR - Failed to download File - did Job finish successfully?");
+    }
+
+
 }
 
 void

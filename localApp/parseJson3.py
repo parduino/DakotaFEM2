@@ -13,34 +13,30 @@ path2 = inputArgs[2]
 exeDakota = inputArgs[3]
 
 if (sys.platform == 'darwin'):
-    OpenSeesPath = '/Users/fmckenna/bin/'
-    FeapPath = '/Users/fmckenna/bin/'
-    DakotaPath = '/Users/fmckenna/dakota-6.7.0/bin/'
-    OpenSeesPath = ' ' 
-    DakotaPath = ' '
-    Perl = ' '
+    OpenSees = '/Users/fmckenna/bin/OpenSees'
+    Feap = '/Users/fmckenna/bin/feappv'
+    Dakota = '/Users/fmckenna/dakota-6.7.0/bin/dakota'
+    DakotaR = '/Users/fmckenna/dakota-6.7.0/bin/dprepro'
     fem_driver = 'fem_driver'
     numCPUs = 8
 
 else:
-    OpenSeesPath = 'C:\\Users\\SimCenter\\OpenSees\\Win64\\bin\\'
-    DakotaPath = 'C:\\Users\\SimCenter\\dakota-6.7\\bin\\'
-    Perl = 'C:\\Perl64\\bin\perl '
-    OpenSeesPath = ' '
-    # DakotaPath = ' '
-    Perl = 'perl '
+    OpenSees = 'C:\\Users\\SimCenter\\OpenSees\\Win64\\bin\\OpenSees.exe'
+    Feap = 'C:\\Users\\SimCenter\\feap\\Feappv41.exe'
+    Dakota = 'C:\\Users\\SimCenter\\dakota-6.7\\bin\\dakota.bat'
+    DakotaR = 'python C:\\Users\\SimCenter\\dakota-6.7\\bin\\dprepro'
     fem_driver = 'fem_driver.bat'
     numCPUs = 8
 
 if exeDakota in ['runningRemote']:
-    OpenSeesPath = '/home1/00477/tg457427/bin/'
-
-print(OpenSeesPath)
-print(DakotaPath)
+    OpenSees = '/home1/00477/tg457427/bin/OpenSees'
+    Feap = '/home1/00477/tg457427/bin/feappv'
+    Dakota = 'dakota'
+    DakotaR = 'dprepro'
+    fem_driver = 'fem_driver'
 
 os.chdir(path2)
 cwd = os.getcwd()
-#print cwd
 
 #
 # open file
@@ -108,12 +104,8 @@ betaUncertainLower =[];
 betaUncertainHigher =[];
 betaUncertainAlphas =[];
 
-print("-----------------")
-print(data)
-print("-----------------")
-
 for k in data["randomVariables"]:
-    if (k["distribution"] == "Normal"):
+    if (k["distribution"] == 'Normal'):
         uncertainName.append(k["name"])
         numUncertain += 1
         normalUncertainName.append(k["name"])
@@ -147,7 +139,7 @@ for k in data["randomVariables"]:
         continuousDesignName.append(k["name"])
         continuousDesignLower.append(k["lowerbound"])
         continuousDesignUpper.append(k["upperbound"])
-        continuousDesignInitialPoint.append(k["initialPoint"])
+        continuousDesignInitialPoint.append(k["initialpoint"])
         numContinuousDesign += 1
     elif (k["distribution"] == "Weibull"):
         uncertainName.append(k["name"])
@@ -180,6 +172,9 @@ for k in data["randomVariables"]:
         betaUncertainBetas.append(k["betas"])
         numBetaUncertain += 1
 
+#print("-----------------")
+#print(data)
+#print("-----------------")
 
 #
 # Write the dakota input file: dakota.in 
@@ -541,13 +536,17 @@ if (femProgram == "OpenSees" or femProgram == "OpenSees-2" or femProgram == "FEA
     f.write('interface,\n')
     #f.write('system # asynch evaluation_concurrency = 8')
     #f.write('fork asynchronous evaluation_concurrency = ' '{}'.format(numCPUs))
-    f.write('fork \n asynchronous')
+    if exeDakota in ['runningLocal']:
+        f.write("fork \n asynchronous evaluation_concurrency = %d" % numCPUs)
+    else:
+        f.write('fork \n asynchronous')
     f.write('\nanalysis_driver = \'fem_driver\' \n')
     f.write('parameters_file = \'params.in\' \n')
     f.write('results_file = \'results.out\' \n')
     f.write('work_directory directory_tag \n')
     f.write('copy_files = \'templatedir/*\' \n')
-    f.write('named \'workdir\' file_save  directory_save \n')
+#    f.write('named \'workdir\' file_save  directory_save \n')
+    f.write('named \'workdir\' \n')
     f.write('aprepro \n')
     f.write('\n')
     
@@ -612,13 +611,12 @@ if (femProgram == "OpenSees-SingleScript"):
     os.chdir(path1)
 
     f = open(fem_driver, 'w')
-    f.write(Perl)
-    f.write(DakotaPath)
-    f.write('dprepro params.in ')
+    f.write(DakotaR)
+    f.write(' params.in ')
     f.write(inputFile)
     f.write(' SimCenterInput.tcl\n')
-    f.write(OpenSeesPath)
-    f.write('OpenSees SimCenterInput.tcl >> ops.out\n')
+    f.write(OpenSees)
+    f.write(' SimCenterInput.tcl >> ops.out\n')
     f.close()
 
 if (femProgram == "OpenSees"):
@@ -643,38 +641,40 @@ if (femProgram == "OpenSees"):
     f.close()
 
     f = open(fem_driver, 'w')
-    f.write(Perl)
-    f.write(DakotaPath)
-    f.write('dprepro params.in SimCenterParams.template SimCenterParamIN.ops\n')
-    f.write(OpenSeesPath)
-    f.write('OpenSees SimCenterInput.ops >> ops.out\n')
+    f.write(DakotaR)
+    f.write(' params.in SimCenterParams.template SimCenterParamIN.ops\n')
+    f.write(OpenSees)
+    f.write(' SimCenterInput.ops >> ops.out\n')
     #    f.write('dprepro params.in %s SimCenterInput.tcl\n' %inputFile)
     #    f.write(OpenSeesPath)
     #    f.write('OpenSees SimCenterInput.tcl >> ops.out\n')
     f.write('python ')
-    f.write(postprocessScript)
+    f.write("%s " % postprocessScript)
+    #    f.write(postprocessScript)
     for i in range(numResponses):
-        f.write(' ')
-        f.write(responseDescriptors[i])    
+        #        f.write(' ')
+        #        f.write(responseDescriptors[i])    
+        f.write("%s " %responseDescriptors[i])
     f.write('\n')
     f.close()
 	
     os.chdir(path1)
     f = open(fem_driver, 'w')
-    f.write(Perl)
-    f.write(DakotaPath)
-    f.write('dprepro params.in SimCenterParams.template SimCenterParamIN.ops\n')
-    f.write(OpenSeesPath)
-    f.write('OpenSees SimCenterInput.ops >> ops.out\n')
+    f.write(DakotaR)
+    f.write(' params.in SimCenterParams.template SimCenterParamIN.ops\n')
+    f.write(OpenSees)
+    f.write(' SimCenterInput.ops >> ops.out\n')
     #    f.write('dprepro params.in %s SimCenterInput.tcl\n' %inputFile)
     #    f.write(OpenSeesPath)
     #    f.write('OpenSees SimCenterInput.tcl >> ops.out\n')
     f.write('python ')
-    f.write(postprocessScript)
+    f.write("%s " % postprocessScript)
     for i in range(numResponses):
-        f.write(' ')
-        f.write(responseDescriptors[i])    
-    f.write('\n')
+        #        f.write(' ')
+        #        f.write(responseDescriptors[i])    
+        #    f.write('\n')
+        f.write("%s " %responseDescriptors[i])    
+
     f.close()
 
 if (femProgram == "FEAPpv"):
@@ -693,14 +693,13 @@ if (femProgram == "FEAPpv"):
     
     os.chdir(path1)
     f = open(fem_driver, 'w')
-    f.write(Perl)
-    f.write(DakotaPath)
-    f.write('dprepro params.in ')
+    f.write(DakotaR)
+    f.write(' params.in ')
     f.write(inputFile)
     f.write(' SimCenterIn.txt --output-format=\'\%10.5f\'\n')
     f.write('echo y|')
-    f.write(FeapPath)
-    f.write('feappv\n')
+    f.write(Feap)
+    f.write(' \n')
     f.write('python ')
     f.write(postprocessScript)
     for i in range(numResponses):
@@ -712,7 +711,7 @@ if (femProgram == "FEAPpv"):
 
 os.chmod(fem_driver, stat.S_IXUSR | stat.S_IRUSR | stat.S_IXOTH)
 
-command = DakotaPath + 'dakota -input dakota.in -output dakota.out -error dakota.err'
+command = Dakota + ' -input dakota.in -output dakota.out -error dakota.err'
 print(command)
 #os.popen("/Users/fmckenna/dakota-6.7.0/bin/dakota -input dakota.in -output dakota.out -error dakota.err").read()
 

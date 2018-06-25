@@ -83,6 +83,8 @@ UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 #include <RemoteJobManager.h>
 #include <QThread>
 
+#include <QDesktopServices>
+
 /*
 static
 MainWindow::MainWindow *theOneStaticMainWindow = 0;
@@ -273,6 +275,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect(random,SIGNAL(sendErrorMessage(QString)),this,SLOT(errorMessage(QString)));
     connect(results,SIGNAL(sendErrorMessage(QString)),this,SLOT(errorMessage(QString)));
     connect(uq,SIGNAL(sendErrorMessage(QString)),this,SLOT(errorMessage(QString)));
+    connect(jobManager,SIGNAL(errorMessage(QString)),this,SLOT(errorMessage(QString)));
+    connect(jobCreator,SIGNAL(errorMessage(QString)),this,SLOT(errorMessage(QString)));
 
     // login
     connect(loginButton,SIGNAL(clicked(bool)),this,SLOT(onLoginButtonClicked()));
@@ -325,7 +329,7 @@ MainWindow::~MainWindow()
     //delete theRemoteInterface;
     thread->quit();
     theRemoteInterface->deleteLater();
-    thread->terminate();
+
     delete jobCreator;
     delete jobManager;
 }
@@ -437,8 +441,8 @@ void MainWindow::onRunButtonClicked() {
     QString homeDIR = QDir::homePath();
     QString appDIR = qApp->applicationDirPath();
 
-    appDIR = homeDIR + QDir::separator() + QString("NHERI") + QDir::separator() + QString("uqFEM") +
-      QDir::separator() + QString("localApp");
+  //   appDIR = homeDIR + QDir::separator() + QString("NHERI") + QDir::separator() + QString("uqFEM") +
+  //    QDir::separator() + QString("localApp");
 
     //
     QString pySCRIPT = appDIR +  QDir::separator() + QString("parseJson3.py");
@@ -472,15 +476,21 @@ void MainWindow::onRunButtonClicked() {
 
 #ifdef Q_OS_WIN
     QString command = QString("python ") + pySCRIPT + QString(" ") + tDirectory + QString(" ") + tmpDirectory  + QString(" runningLocal");
- qDebug() << command;
+    qDebug() << command;
     proc->execute("cmd", QStringList() << "/C" << command);
     //   proc->start("cmd", QStringList(), QIODevice::ReadWrite);
-    qDebug() << command;
+
 #else
-    QString command = QString("source $HOME/.bashrc; python ") + pySCRIPT + QString(" ") + tDirectory + QString(" ") +
-            tmpDirectory + QString(" runningLocal");
+   QString command = QString("source $HOME/.bash_profile; python ") + pySCRIPT + QString(" ") + tDirectory + QString(" ") +
+     tmpDirectory + QString(" runningLocal");
+
+    //QString command = QString("python ") + pySCRIPT + QString(" ") + tDirectory + QString(" ") +
+    //        tmpDirectory + QString(" runningLocal");
+
     proc->execute("bash", QStringList() << "-c" <<  command);
-    qDebug() << command;
+
+    qInfo() << command;
+
     // proc->start("bash", QStringList("-i"), QIODevice::ReadWrite);
 #endif
     proc->waitForStarted();
@@ -495,7 +505,7 @@ void MainWindow::onRunButtonClicked() {
    }
 
    QDir dirToRemove(sourceDir);
-   //dirToRemove.removeRecursively(); // padhye 4/28/2018, this removes the temprorary directory
+   dirToRemove.removeRecursively(); // padhye 4/28/2018, this removes the temprorary directory
                                     // so to debug you can simply comment it
 
     //
@@ -572,8 +582,8 @@ void MainWindow::onRemoteRunButtonClicked(){
     QString homeDIR = QDir::homePath();
     QString appDIR = qApp->applicationDirPath();
 
-    appDIR = homeDIR + QDir::separator() + QString("NHERI") + QDir::separator() + QString("uqFEM") +
-      QDir::separator() + QString("localApp");
+   // appDIR = homeDIR + QDir::separator() + QString("NHERI") + QDir::separator() + QString("uqFEM") +
+   //   QDir::separator() + QString("localApp");
 
     //
     QString pySCRIPT = appDIR +  QDir::separator() + QString("parseJson3.py");
@@ -603,15 +613,14 @@ void MainWindow::onRemoteRunButtonClicked(){
     //
 
     QProcess *proc = new QProcess();
-qDebug() << "HELLO";
 #ifdef Q_OS_WIN
-    QString command = QString("python ") + pySCRIPT + QString(" ") + tDirectory + QString(" ") + tmpDirectory;
+    QString command = QString("python ") + pySCRIPT + QString(" ") + tDirectory + QString(" ") + tmpDirectory + QString(" runningRemote");
     qDebug() << command;
     proc->execute("cmd", QStringList() << "/C" << command);
     //   proc->start("cmd", QStringList(), QIODevice::ReadWrite);
 
 #else
-    QString command = QString("source $HOME/.bashrc; python ") + pySCRIPT + QString(" ") + tDirectory + QString(" ") + tmpDirectory + QString(" runningRemote");
+    QString command = QString("source $HOME/.bash_profile; python ") + pySCRIPT + QString(" ") + tDirectory + QString(" ") + tmpDirectory + QString(" runningRemote");
     proc->execute("bash", QStringList() << "-c" <<  command);
     qDebug() << command;
     // proc->start("bash", QStringList("-i"), QIODevice::ReadWrite);
@@ -622,9 +631,11 @@ qDebug() << "HELLO";
     // when setup is complete, pop open the jobCreateor Widget which will allow user
     // to set some needed info before running at DesignSafe
     //
+
     jobCreator->hide();
     jobManager->hide();
     jobCreator->setInputDirectory(tDirectory);
+    jobCreator->setMaxNumParallelProcesses(uq->getNumParallelTasks());
     jobCreator->show();
 }
 
@@ -720,8 +731,8 @@ MainWindow::logoutReturn(bool ok){
 
 
 void MainWindow::onExitButtonClicked(){
-    RandomVariableInputWidget *theParameters = uq->getParameters();
-    QApplication::quit();
+  //RandomVariableInputWidget *theParameters = uq->getParameters();
+  QApplication::quit();
 }
 
 void MainWindow::onDakotaMethodChanged(void) {
@@ -854,7 +865,6 @@ void MainWindow::loadFile(const QString &fileName)
         return;
     }
 
-
     // given the json object, create the C++ objects
     //inputWidget->inputFromJSON(jsonObj);
     if (fem->inputFromJSON(jsonObj) != true)
@@ -863,6 +873,12 @@ void MainWindow::loadFile(const QString &fileName)
         return;
     if (random->inputFromJSON(jsonObj) != true)
         return;
+
+    qDebug() << "uq->getResults()";
+    DakotaResults *result=uq->getResults();
+    results->setResultWidget(result);
+    qDebug() << "results - inputFRomJSON";
+
     if (results->inputFromJSON(jsonObj) != true)
         return;
 
@@ -878,6 +894,8 @@ void MainWindow::processResults(QString &dakotaIN, QString &dakotaTAB)
     result->processResults(dakotaIN, dakotaTAB);
     results->setResultWidget(result);
     inputWidget->setSelection(QString("Results"));
+
+    errorMessage(" ");
 }
 
 void MainWindow::createActions() {
@@ -923,5 +941,122 @@ void MainWindow::createActions() {
     // exitAction->setShortcuts(QKeySequence::Quit);
     exitAction->setStatusTip(tr("Exit the application"));
     fileMenu->addAction(exitAction);
+
+    QMenu *helpMenu = menuBar()->addMenu(tr("&Help"));
+    QAction *infoAct = helpMenu->addAction(tr("&About"), this, &MainWindow::about);
+    QAction *submitAct = helpMenu->addAction(tr("&Provide Feedback"), this, &MainWindow::submitFeedback);
+    //aboutAct->setStatusTip(tr("Show the application's About box"));
+    QAction *aboutAct = helpMenu->addAction(tr("&Version"), this, &MainWindow::version);
+    //aboutAct->setStatusTip(tr("Show the application's About box"));
+    QAction *copyrightAct = helpMenu->addAction(tr("&License"), this, &MainWindow::copyright);
+    //aboutAct->setStatusTip(tr("Show the application's About box"));
+
+}
+
+
+
+void MainWindow::copyright()
+{
+    QString textCopyright = "\
+        <p>\
+        The source code is licensed under a BSD 2-Clause License:<p>\
+        \"Copyright (c) 2017-2018, The Regents of the University of California (Regents).\"\
+        All rights reserved.<p>\
+        <p>\
+        Redistribution and use in source and binary forms, with or without \
+        modification, are permitted provided that the following conditions are met:\
+        <p>\
+         1. Redistributions of source code must retain the above copyright notice, this\
+         list of conditions and the following disclaimer.\
+         \
+         \
+         2. Redistributions in binary form must reproduce the above copyright notice,\
+         this list of conditions and the following disclaimer in the documentation\
+         and/or other materials provided with the distribution.\
+         <p>\
+         THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS \"AS IS\" AND\
+         ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED\
+         WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE\
+         DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR\
+         ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES\
+         (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;\
+         LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND\
+            ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT\
+            (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS\
+            SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.\
+            <p>\
+            The views and conclusions contained in the software and documentation are those\
+            of the authors and should not be interpreted as representing official policies,\
+            either expressed or implied, of the FreeBSD Project.\
+            <p>\
+            REGENTS SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT LIMITED TO, \
+            THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.\
+            THE SOFTWARE AND ACCOMPANYING DOCUMENTATION, IF ANY, PROVIDED HEREUNDER IS \
+            PROVIDED \"AS IS\". REGENTS HAS NO OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT,\
+            UPDATES, ENHANCEMENTS, OR MODIFICATIONS.\
+            <p>\
+            ------------------------------------------------------------------------------------\
+            <p>\
+            The compiled binary form of this application is licensed under a GPL Version 3 license.\
+            The licenses are as published by the Free Software Foundation and appearing in the LICENSE file\
+            included in the packaging of this application. \
+            <p>\
+            ------------------------------------------------------------------------------------\
+            <p>\
+            This software makes use of the QT packages (unmodified): core, gui, widgets and network\
+                                                                     <p>\
+                                                                     QT is copyright \"The Qt Company Ltd&quot; and licensed under the GNU Lesser General \
+                                                                     Public License (version 3) which references the GNU General Public License (version 3)\
+      <p>\
+      The licenses are as published by the Free Software Foundation and appearing in the LICENSE file\
+      included in the packaging of this application. \
+      <p>\
+      ------------------------------------------------------------------------------------\
+      ";
+
+
+         QMessageBox msgBox;
+    QSpacerItem *theSpacer = new QSpacerItem(700, 0, QSizePolicy::Minimum, QSizePolicy::Expanding);
+    msgBox.setText(textCopyright);
+    QGridLayout *layout = (QGridLayout*)msgBox.layout();
+    layout->addItem(theSpacer, layout->rowCount(),0,1,layout->columnCount());
+    msgBox.exec();
+
+}
+
+
+void MainWindow::version()
+{
+    QMessageBox::about(this, tr("Version"),
+                       tr("Version 1.0.0 "));
+}
+
+void MainWindow::about()
+{
+    QString textAbout = "\
+              This is the open-source uqFEM tool. It is an application intended to augment finite element applications with\
+              sampling and optimization methods. These methods will allow users to provide for example uncertainty\
+             quantification in the responses generated and parameter estimation in the input variables in calibration studies.\
+             <p>\
+             Version 1 of this till utilizes the Dakota software to provide the UQ and optimization methods. Each of these\
+             methods will repeatedly invoke the Finite Element application on either locally on the users dekstp machine or remotely\
+             on HPC resources at the Texas Advanced Computing Center throgh the NHERI DesignSafe cyberinfrastructure.\
+             <p>\
+             The tool does not limit the capabilities provided by these applications, and as such, does not stop the user from doing\
+             stupid things.<p>\
+            ";
+
+            QMessageBox msgBox;
+    QSpacerItem *theSpacer = new QSpacerItem(500, 0, QSizePolicy::Minimum, QSizePolicy::Expanding);
+    msgBox.setText(textAbout);
+    QGridLayout *layout = (QGridLayout*)msgBox.layout();
+    layout->addItem(theSpacer, layout->rowCount(),0,1,layout->columnCount());
+    msgBox.exec();
+}
+
+void MainWindow::submitFeedback()
+{
+   // QDesktopServices::openUrl(QUrl("https://github.com/NHERI-SimCenter/MDOF/issues", QUrl::TolerantMode));
+ QDesktopServices::openUrl(QUrl("https://www.designsafe-ci.org/help/new-ticket/", QUrl::TolerantMode));
 }
 

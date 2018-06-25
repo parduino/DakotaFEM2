@@ -81,13 +81,13 @@ AgaveCurl::AgaveCurl(QString &_tenant, QString &_storage, QObject *parent)
     // for operation the class needs two temporary files to function
     //  - either use name Qt provides or use a QUid in current dir
 
-    QUuid uniqueName = QUuid::createUuid();
-    QString strUnique = uniqueName.toString();
-    uniqueFileName1 = QCoreApplication::applicationDirPath() + QDir::separator() + strUnique.mid(1,36);
+    QUuid uniqueName1 = QUuid::createUuid();
+    QString strUnique1 = uniqueName1.toString();
+    uniqueFileName1 = QCoreApplication::applicationDirPath() + QDir::separator() + strUnique1.mid(1,36);
 
     QUuid uniqueName2 = QUuid::createUuid();
     QString strUnique2 = uniqueName2.toString();
-    uniqueFileName2 = strUnique2.mid(1,36);
+    uniqueFileName2 = QCoreApplication::applicationDirPath() + QDir::separator() + strUnique2.mid(1,36);
 
     //
     // init curl variables
@@ -129,6 +129,7 @@ AgaveCurl::~AgaveCurl()
 
   QFile file1 (uniqueFileName1);
   file1.remove();
+
   QFile file2 (uniqueFileName2);
   file2.remove();
 
@@ -178,7 +179,10 @@ AgaveCurl::login(QString uname, QString upassword)
     curl_easy_setopt(hnd, CURLOPT_URL, url.toStdString().c_str());
     curl_easy_setopt(hnd, CURLOPT_USERPWD, user_passwd.toStdString().c_str());
     curl_easy_setopt(hnd, CURLOPT_CUSTOMREQUEST, "DELETE");
-    bool ok = this->invokeCurl();
+
+    if (this->invokeCurl() == false) {
+        return false;
+    }
 
     //
     // first try creating a client with username & password
@@ -362,17 +366,12 @@ AgaveCurl::logout()
 
 void
 AgaveCurl::getHomeDirPathCall(void) {
-
-    // QString result = QString("agave://designsafe.storage.default/") + nameLineEdit->text();
     QString result = storage + username;
-    qDebug() << "AgaveCurl::homeDirPath: " << result;
     emit getHomeDirPathReturn(result);
 }
 
 QString
 AgaveCurl::getHomeDirPath(void) {
-
-    // QString result = QString("agave://designsafe.storage.default/") + nameLineEdit->text();
     QString result = storage + username;
     return result;
 }
@@ -415,7 +414,6 @@ AgaveCurl::uploadDirectory(const QString &local, const QString &remote)
     // now we go through each file in local dir & upload to new remote directory
     //   - if dir we recursivily call the method
     //
-
 
    // originDirectory.mkpath(destinationDir);
 
@@ -768,6 +766,80 @@ AgaveCurl::downloadFile(const QString &remoteFile, const QString &localFile)
     return false;
 }
 
+
+QJsonObject
+AgaveCurl::remoteLS(const QString &remotePath)
+{
+    QJsonObject result;
+    // this method does not invoke the invokeCurl() as want to write to local file directtly
+
+
+    QFileInfo remoteFileInfo(remotePath);
+    QString remoteName = remoteFileInfo.fileName();
+    QString message = QString("Contacting ") + tenant + QString(" to get dir listing ") + remoteName;
+    emit statusMessage(message);
+
+    // set up the call
+    QString url = tenantURL + QString("files/v2/listings/") + remotePath;
+
+    curl_easy_setopt(hnd, CURLOPT_URL, url.toStdString().c_str());
+    if (this->invokeCurl() == false) {
+        return result;
+    }
+
+    //
+    // process the results
+    //
+
+    // open results file
+    QFile file(uniqueFileName1);
+    if (!file.open(QFile::ReadOnly | QFile::Text)) {
+        emit errorMessage("ERROR: COULD NOT OPEN RESULT .. remoteLS!");
+        return result;
+    }
+
+    // read results file & check for errors
+    QString val;
+    val=file.readAll();
+    file.close();
+
+    // read into json object
+   QJsonDocument doc = QJsonDocument::fromJson(val.toUtf8());
+   QJsonObject theObj = doc.object();
+
+    QString status;
+    if (theObj.contains("status")) {
+        status = theObj["status"].toString();
+        if (status == "error") {
+            QString message("Directory Not Found");
+            if (theObj.contains("message"))
+                message = QString("ERROR: " ) + theObj["message"].toString();
+            emit errorMessage(message);
+            return result;
+        } else if (status == "success") {
+            if (theObj.contains("result")) {
+                result = theObj["result"].toObject();
+                QString message = QString("Succesfully obtained lising: ") + remoteName;
+                emit statusMessage(message);
+                return result;
+            }
+        }
+
+    } else if (theObj.contains("fault")) {
+        QJsonObject theFault = theObj["fault"].toObject();
+        if (theFault.contains("message")) {
+            QString message = theFault["message"].toString();
+            emit errorMessage(message);
+            return result;
+        }
+    }
+
+    return result;
+
+}
+
+
+
 QString
 AgaveCurl::startJob(const QString &jobDescriptionFile)
 {
@@ -812,8 +884,6 @@ AgaveCurl::startJob(const QString &jobDescriptionFile)
     val=file.readAll();
     file.close();
 
-    qDebug() << val;
-
     // read into json object
    QJsonDocument doc = QJsonDocument::fromJson(val.toUtf8());
    QJsonObject theObj = doc.object();
@@ -828,8 +898,7 @@ AgaveCurl::startJob(const QString &jobDescriptionFile)
        if (status == "error") {
            QString message("Job Not Found");
            if (theObj.contains("message"))
-               message = theObj["message"].toString();
-           qDebug() << "ERROR MESSAGE: " << message;
+               message = QString("ERROR: " ) + theObj["message"].toString();
            emit errorMessage(message);
 	   return result;
        } else if (status == "success") {
@@ -961,6 +1030,7 @@ AgaveCurl::getJobDetails(const QString &jobID)
   if (this->invokeCurl() == false) {
       return result;
   }
+
   //
   // process the results
   //
@@ -1179,7 +1249,6 @@ AgaveCurl::invokeCurl(void) {
   // if failure, go get message, emit signal and return false;
   const char *str = curl_easy_strerror(ret);
   QString errorString(str);
-  qDebug() << errorString;
   emit errorMessage(QString("ERROR: " ) + QString(errorString));
 
   return false;
