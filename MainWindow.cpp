@@ -75,14 +75,17 @@ UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 #include <QUuid>
 #include <QLabel>
 #include <QLineEdit>
-
+#include <QtNetwork/QNetworkAccessManager>
+#include <QtNetwork/QNetworkReply>
+#include <QtNetwork/QNetworkRequest>
+#include <QHostInfo>
 
 //#include <AgaveCLI.h>
 #include <AgaveCurl.h>
 #include <RemoteJobCreator.h>
 #include <RemoteJobManager.h>
 #include <QThread>
-
+#include <QSettings>
 #include <QDesktopServices>
 
 /*
@@ -122,7 +125,19 @@ MainWindow::fatalMessage(const QString msg){
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), loggedIn(false)
 {
-   // theOneStaticMainWindow = this;
+    //
+    // user settings
+    //
+
+    QSettings settings("SimCenter", "uqFEM");
+    QVariant savedValue = settings.value("uuid");
+    QUuid uuid;
+    if (savedValue.isNull()) {
+        uuid = QUuid::createUuid();
+        settings.setValue("uuid",uuid);
+    } else
+        uuid =savedValue.toUuid();
+
 
     //
     // create the interface, jobCreator and jobManager
@@ -314,25 +329,71 @@ MainWindow::MainWindow(QWidget *parent)
 
     this->createActions();
 
+    //
+    // create QThread in which the Interface will work, move interface to it,
+    // connect slots to thread to quit and invoke interface destructor & start running
+    //
+
     thread = new QThread();
     theRemoteInterface->moveToThread(thread);
 
+    connect(thread, SIGNAL(finished()), theRemoteInterface, SLOT(deleteLater()));
     connect(thread, SIGNAL(finished()), thread, SLOT(deleteLater()));
 
     thread->start();
 
+    //
+    // at startup make some URL calls to cleect tool stats
+    //
+
+    manager = new QNetworkAccessManager(this);
+
+    connect(manager, SIGNAL(finished(QNetworkReply*)),
+            this, SLOT(replyFinished(QNetworkReply*)));
+
+    // send get to my simple counter
+    manager->get(QNetworkRequest(QUrl("http://opensees.berkeley.edu/OpenSees/developer/uqFEM/use.php")));
+
+    //
+    // google analytics
+    // ref: https://developers.google.com/analytics/devguides/collection/protocol/v1/reference
+    //
+
+    QNetworkRequest request;
+    QUrl host("http://www.google-analytics.com/collect");
+    request.setUrl(host);
+    request.setHeader(QNetworkRequest::ContentTypeHeader,
+                      "application/x-www-form-urlencoded");
+
+    // setup parameters of request
+    QString requestParams;
+    QString hostname = QHostInfo::localHostName() + "." + QHostInfo::localDomainName();
+    //QUuid uuid = QUuid::createUuid();
+    requestParams += "v=1"; // version of protocol
+    requestParams += "&tid=UA-121636495-1"; // Google Analytics account
+    requestParams += "&cid=" + uuid.toString(); // unique user identifier
+    requestParams += "&t=event";  // hit type = event others pageview, exception
+    requestParams += "&an=uqFEM"; // app name
+    requestParams += "&av=1.0.0"; // app version
+    requestParams += "&ec=uqFEM";   // event category
+    requestParams += "&ea=start"; // event action
+
+    // send post to google-analytics
+    manager->post(request, requestParams.toStdString().c_str());
 }
 
 MainWindow::~MainWindow()
 {
-    // invoke destructor as AgaveCLI not a QObject
-    //delete theRemoteInterface;
+    //
+    // call quit on thread and deleteLater on interface
+    // -interface destructor called here
     thread->quit();
     theRemoteInterface->deleteLater();
 
+    // destroy objects we created
     delete jobCreator;
     delete jobManager;
-    //    delete theRemoteInterface;
+    delete manager;
 }
 
 bool copyPath(QString sourceDir, QString destinationDir, bool overWriteDirectory)
