@@ -232,7 +232,7 @@ InputWidgetUQ::getResults(void)
     return 0;
 }
 
-RandomVariableInputWidget *
+RandomVariablesContainer *
 InputWidgetUQ::getParameters(void)
 {
     if (dakotaMethod != 0) {

@@ -49,10 +49,11 @@ UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 #include <QPushButton>
 class DakotaSamplingResults;
 class DakotaResults;
+class QCheckBox;
 
 
 class InputWidgetEDP;
-class RandomVariableInputWidget;
+class RandomVariablesContainer;
 
 class InputWidgetSampling : public InputWidgetDakotaMethod
 {
@@ -67,7 +68,7 @@ public:
     int processResults(QString &filenameResults, QString &filenameTab);
 
     DakotaResults *getResults(void);
-    RandomVariableInputWidget  *getParameters();
+    RandomVariablesContainer  *getParameters();
 
     int getMaxNumParallelTasks(void);
 
@@ -75,7 +76,8 @@ signals:
 
 public slots:
    void clear(void);
-    void uqSelectionChanged(const QString &arg1);
+   void uqSelectionChanged(const QString &arg1);
+   void setSobolevFlag(bool);// added by padhye for sobolev indices
  //  void uqMethodChanged(const QString &arg1);
 
 private:
@@ -84,14 +86,18 @@ private:
     QComboBox   *samplingMethod;
     QLineEdit   *numSamples;
     QLineEdit   *randomSeed;
-    QPushButton *run;
+    //    QPushButton *run;
+    QCheckBox *sobolevCheckBox;
+    int flagForSobolevIndices;
 
     QComboBox   *uqSelection;
     QWidget     *uqSpecific;
 
-    RandomVariableInputWidget *theParameters;
+    RandomVariablesContainer *theParameters;
     InputWidgetEDP *theEdpWidget;
     DakotaSamplingResults *results;
+
+
 };
 
 #endif // INPUTWIDGET_SAMPLING_H
