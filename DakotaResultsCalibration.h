@@ -39,7 +39,7 @@ UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 
 // Written: fmckenna
 
-#include <DakotaResults.h>
+#include <UQ_Results.h>
 #include <QtCharts/QChart>
 using namespace QtCharts;
 
@@ -48,7 +48,7 @@ class QTabWidget;
 class MyTableWidget;
 //class QChart;
 
-class DakotaResultsCalibration : public DakotaResults
+class DakotaResultsCalibration : public UQ_Results
 {
     Q_OBJECT
 public:
@@ -66,6 +66,7 @@ signals:
 public slots:
    void clear(void);
    void onSpreadsheetCellClicked(int, int);
+   void onSaveSpreadsheetClicked();
 
 private:
    QTabWidget *tabWidget;
@@ -79,6 +80,9 @@ private:
 
    QVector<QString>theNames;
    QVector<double>theBestValues;
+
+   QWidget *summary;
+   QVBoxLayout *summaryLayout;
 };
 
 #endif // DAKOTA_RESULTS_CALIBRATION_H

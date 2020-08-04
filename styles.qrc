@@ -1,5 +1,7 @@
 <RCC>
     <qresource prefix="/">
-        <file>styles/stylesheet.qss</file>
+        <file>styles/stylesheetWIN.qss</file>
+        <file>styles/stylesheetMAC.qss</file>
+        <file>images/aboutQUOFEM.html</file>
     </qresource>
 </RCC>
